@@ -17,29 +17,44 @@ from nltk.stem.porter import PorterStemmer
 from tensorflow import keras
 from keras.preprocessing import sequence
 import matplotlib.pyplot as plt
-
+from keras.utils.np_utils import to_categorical
+from sklearn.preprocessing import LabelEncoder
 
 
 #read bugreport for XLSX
 projectname = 'Eclipse_Platform_UI_bugreport'
-Eclipse_Platform_UI = pd.read_excel('dataset/' + projectname + '.xlsx', engine='openpyxl', nrows = 3400)#, nrows = 500
+Eclipse_Platform_UI = pd.read_excel('dataset/' + projectname + '.xlsx', engine='openpyxl', nrows = 3000)#, nrows = 500
 Eclipse_Platform_UI.rename(columns = {'Unnamed: 10' : 'result'}, inplace = True)
-
+#_________________________________________________________________________________________________________
 #read Serverity for XLSX
-serverity = pd.read_excel('dataset/' + 'serverity' + '.xlsx', engine='openpyxl', nrows = 3400)
+serverity = pd.read_excel('dataset/' + 'serverity' + '.xlsx', engine='openpyxl', nrows = 3000)
 serverity.rename(columns = {'Unnamed: 10' : 'result'}, inplace = True)
 #concat serverity with bugreport
+#_________________________________________________________________________________________________________
+#read Serverity for XLSX    CommitSummary.csv
+
+complexity = pd.read_csv('dataset/' + 'CommitSummary' + '.csv',nrows = 3000)
+complexity.rename(columns = {'Unnamed: 10' : 'result'}, inplace = True)
+
+# complexity=complexity.iloc[:,[1,2,3,4,5]]
+#_________________________________________________________________________________________________________
+
+Eclipse_Platform_UI=pd.concat([Eclipse_Platform_UI, complexity],axis=1,ignore_index=True,keys='bug_id')
+#_________________________________________________________________________________________________________
 
 Eclipse_Platform_UI=pd.concat([Eclipse_Platform_UI, serverity],axis=1,ignore_index=True,keys='bug_id')
-
+#_________________________________________________________________________________________________________
 # Eclipse_Platform_UI.isnull().sum().plot.bar()
 # plt.show()
 
 #get bugid summary description
-df_id_br_s=Eclipse_Platform_UI.iloc[:,[1,2,3,-1]]
 
-# df_id_br_s.dropna(inplace = True)
-# df_id_br_s.reset_index(inplace = True)
+Eclipse_Platform_UI.dropna(inplace = True)
+Eclipse_Platform_UI.reset_index(inplace = True)
+
+df_id_br_s=Eclipse_Platform_UI.iloc[:,[2,3,4,-1]]
+complexity=Eclipse_Platform_UI.iloc[:,[12,13,14,15,16]]
+
 def merge_text(a,b):
     return (a,b)
 
@@ -52,23 +67,12 @@ Y_me=df_id_br_s.iloc[:,-1].to_frame()
 print(Y_me.describe())
 
 #labale data y
-# from keras.utils.np_utils import to_categorical
-#
-# Y_labels = to_categorical(Y_me)
-from sklearn.preprocessing import OneHotEncoder
-oe = OneHotEncoder()
+encoder = LabelEncoder()
+encoded_Y = encoder.fit_transform(Y_me)
 
-Y_labels=OneHotEncoder(categories='auto').fit_transform(np.array(Y_me).reshape(-1,1)).toarray()
+Y_labels = to_categorical(encoded_Y)
+
 #_________________________________________________________________________________________________________
-#read Serverity for XLSX    CommitSummary.csv
-
-complexity = pd.read_csv('dataset/' + 'CommitSummary' + '.csv',nrows = 3400)
-complexity.rename(columns = {'Unnamed: 10' : 'result'}, inplace = True)
-
-complexity=complexity.iloc[:,[1,2,3,4,5]]
-
-
-
 ### Vocabulary size
 voc_size=10000
 
@@ -175,14 +179,15 @@ features =Embedding(output_dim=embeddings_matrix.shape[1],
                          input_length=1500)(bugreport_input)
 lstm_out = LSTM(128)(features)
 hidden_x = Dense(64, activation='tanh')(lstm_out)
-concatenate_layer=tf.keras.layers.concatenate([hidden_x,complexity_input], axis=1)
-hidden_x = Dense(64, activation='tanh')(concatenate_layer)
+hidden_complexity=Dense(64,activation='tanh')(complexity_input)
+concatenate_layer=tf.keras.layers.concatenate([hidden_x,hidden_complexity], axis=1)
+hidden_x = Dense(32, activation='tanh')(concatenate_layer)
 output = Dense(7, activation='softmax')(hidden_x)
 
 model = keras.Model(inputs=[bugreport_input,complexity_input],outputs=output)
 #________________________________________________________________
 
-model.compile(loss = 'categorical_crossentropy', optimizer = 'adam', metrics = ['accuracy'],)
+model.compile(loss = 'categorical_crossentropy', optimizer = keras.optimizers.RMSprop(1e-3), metrics = ['accuracy'],)
 
 model.summary()
 
@@ -210,7 +215,7 @@ complexity_test=complexity_scaler[length:,:]
 ### Finally Training
 # model.fit(X_train,y_train,validation_data=(X_test,y_test),epochs=20,batch_size=100)
 
-model.fit([X_train,complexity_train],y_train,validation_data=([X_test,complexity_test],y_test),epochs=20)
+model.fit([X_train,complexity_train],y_train,validation_data=([X_test,complexity_test],y_test),epochs=20,batch_size=300)
 
 
 # results = model.evaluate(X_test, y_test)
@@ -218,7 +223,7 @@ model.fit([X_train,complexity_train],y_train,validation_data=([X_test,complexity
 # predictions = model.predict(X_test)
 # print(predictions)
 
-results = model.evaluate(X_test,complexity_test,y_test)
+results = model.evaluate([X_test,complexity_test],y_test)
 print('evaluate test data:')
 print(results)
 
