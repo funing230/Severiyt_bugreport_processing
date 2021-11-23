@@ -22,11 +22,11 @@ import matplotlib.pyplot as plt
 
 #read bugreport for XLSX
 projectname = 'Eclipse_Platform_UI_bugreport'
-Eclipse_Platform_UI = pd.read_excel('dataset/' + projectname + '.xlsx', engine='openpyxl')
+Eclipse_Platform_UI = pd.read_excel('dataset/' + projectname + '.xlsx', engine='openpyxl', nrows = 3400)#, nrows = 500
 Eclipse_Platform_UI.rename(columns = {'Unnamed: 10' : 'result'}, inplace = True)
 
 #read Serverity for XLSX
-serverity = pd.read_excel('dataset/' + 'serverity' + '.xlsx', engine='openpyxl')
+serverity = pd.read_excel('dataset/' + 'serverity' + '.xlsx', engine='openpyxl', nrows = 3400)
 serverity.rename(columns = {'Unnamed: 10' : 'result'}, inplace = True)
 #concat serverity with bugreport
 
@@ -38,8 +38,8 @@ Eclipse_Platform_UI=pd.concat([Eclipse_Platform_UI, serverity],axis=1,ignore_ind
 #get bugid summary description
 df_id_br_s=Eclipse_Platform_UI.iloc[:,[1,2,3,-1]]
 
-df_id_br_s.dropna(inplace = True)
-df_id_br_s.reset_index(inplace = True)
+# df_id_br_s.dropna(inplace = True)
+# df_id_br_s.reset_index(inplace = True)
 def merge_text(a,b):
     return (a,b)
 
@@ -60,17 +60,13 @@ oe = OneHotEncoder()
 
 Y_labels=OneHotEncoder(categories='auto').fit_transform(np.array(Y_me).reshape(-1,1)).toarray()
 #_________________________________________________________________________________________________________
-# df=pd.read_csv('train.csv',nrows=15000)#,nrows=15000
-#
-# df.dropna(inplace = True)
-#
-# #df.shape
-#
-# ## Get the Independent Features
-# X = df.drop('label', axis = 1)
-#
-# ## Get the Dependent features
-# y=df['label']
+#read Serverity for XLSX    CommitSummary.csv
+
+complexity = pd.read_csv('dataset/' + 'CommitSummary' + '.csv',nrows = 3400)
+complexity.rename(columns = {'Unnamed: 10' : 'result'}, inplace = True)
+
+complexity=complexity.iloc[:,[1,2,3,4,5]]
+
 
 
 ### Vocabulary size
@@ -104,10 +100,10 @@ def process_data(messages):
 sentences= [nltk.word_tokenize(words) for words in process_data(messages)]
 
 #word2vec
-EMBEDDING_LEN=200
+EMBEDDING_LEN=100
 def get_word2vec_dictionaries(texts):
 
-    Word2VecModel =Word2Vec(texts, window=5, min_count=3, workers=4) #  Get the word2vector model
+    Word2VecModel =Word2Vec(texts, window=5, min_count=3, workers=4,vector_size=EMBEDDING_LEN) #  Get the word2vector model
     words=list(Word2VecModel.wv.index_to_key)
     vocab_list = [word for word in words]  # Store all words  index_to_key enumerate(Word2VecModel.wv.index_to_key)
 
@@ -164,24 +160,29 @@ X = tokenizer(sentences, word_index) #texts is numpy, input into the model calcu
 #       keras.layers.LSTM(200),
 #       keras.layers.LSTM(64),
 #       keras.layers.Dropout(0.3),
-#       keras.layers.Dense(6, activation='softmax')
+#       keras.layers.Dense(7, activation='softmax')
 #    ])
 
 #________________________________________________________________
-input = keras.Input(shape=(X.shape[1],))
-# weight_input = keras.Input(shape=(lastweight.shape[1],), name="weight")
+mix_max_scaler=sklearn.preprocessing.MinMaxScaler()
+complexity_scaler=mix_max_scaler.fit_transform(complexity)
+#________________________________________________________________
+bugreport_input = keras.Input(shape=(X.shape[1],),name="bugreport")
+complexity_input = keras.Input(shape=(complexity_scaler.shape[1],),name="complexity")
 features =Embedding(output_dim=embeddings_matrix.shape[1],
                          input_dim=embeddings_matrix.shape[0],
                          weights=[embeddings_matrix],
-                         input_length=1500)(input)
+                         input_length=1500)(bugreport_input)
 lstm_out = LSTM(128)(features)
-# lstm_out = LSTM(64)(lstm_out)
-hidden_x = Dense(64, activation='sigmoid')(lstm_out)
+hidden_x = Dense(64, activation='tanh')(lstm_out)
+concatenate_layer=tf.keras.layers.concatenate([hidden_x,complexity_input], axis=1)
+hidden_x = Dense(64, activation='tanh')(concatenate_layer)
 output = Dense(7, activation='softmax')(hidden_x)
-model = keras.Model(inputs=input, outputs=output)
+
+model = keras.Model(inputs=[bugreport_input,complexity_input],outputs=output)
 #________________________________________________________________
 
-model.compile(loss = 'categorical_crossentropy', optimizer = 'rmsprop', metrics = ['accuracy'])
+model.compile(loss = 'categorical_crossentropy', optimizer = 'adam', metrics = ['accuracy'],)
 
 model.summary()
 
@@ -191,17 +192,25 @@ y_final=np.array(Y_labels)
 
 # X_final.shape,y_final.shape
 
+mix_max_scaler=sklearn.preprocessing.MinMaxScaler()
+X_final=mix_max_scaler.fit_transform(X_final)
 
-X_final = sklearn.preprocessing.scale(X_final)
+# X_final = sklearn.preprocessing.scale(X_final)
 
 
 from sklearn.model_selection import train_test_split
 
 X_train, X_test, y_train, y_test = train_test_split(X_final, y_final, test_size=0.30, random_state=42)
 
-### Finally Training
-model.fit(X_train,y_train,validation_data=(X_test,y_test),epochs=20,batch_size=100)
+length=len(X_train)
 
+
+complexity_train=complexity_scaler[:length,:]
+complexity_test=complexity_scaler[length:,:]
+### Finally Training
+# model.fit(X_train,y_train,validation_data=(X_test,y_test),epochs=20,batch_size=100)
+
+model.fit([X_train,complexity_train],y_train,validation_data=([X_test,complexity_test],y_test),epochs=20)
 
 
 # results = model.evaluate(X_test, y_test)
@@ -209,7 +218,7 @@ model.fit(X_train,y_train,validation_data=(X_test,y_test),epochs=20,batch_size=1
 # predictions = model.predict(X_test)
 # print(predictions)
 
-results = model.evaluate(X_test,y_test)
+results = model.evaluate(X_test,complexity_test,y_test)
 print('evaluate test data:')
 print(results)
 
