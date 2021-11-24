@@ -8,9 +8,7 @@ import sklearn
 import os
 from gensim.models import Word2Vec
 from tensorflow.keras.layers import Embedding
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.preprocessing.text import one_hot
+
 from tensorflow.keras.layers import LSTM
 from tensorflow.keras.layers import Dense
 from nltk.stem.porter import PorterStemmer
@@ -23,17 +21,17 @@ from sklearn.preprocessing import LabelEncoder
 
 #read bugreport for XLSX
 projectname = 'Eclipse_Platform_UI_bugreport'
-Eclipse_Platform_UI = pd.read_excel('dataset/' + projectname + '.xlsx', engine='openpyxl', nrows = 3000)#, nrows = 500
+Eclipse_Platform_UI = pd.read_excel('dataset/' + projectname + '.xlsx', engine='openpyxl')#, nrows = 500
 Eclipse_Platform_UI.rename(columns = {'Unnamed: 10' : 'result'}, inplace = True)
 #_________________________________________________________________________________________________________
 #read Serverity for XLSX
-serverity = pd.read_excel('dataset/' + 'serverity' + '.xlsx', engine='openpyxl', nrows = 3000)
+serverity = pd.read_excel('dataset/' + 'serverity' + '.xlsx', engine='openpyxl')
 serverity.rename(columns = {'Unnamed: 10' : 'result'}, inplace = True)
 #concat serverity with bugreport
 #_________________________________________________________________________________________________________
 #read Serverity for XLSX    CommitSummary.csv
 
-complexity = pd.read_csv('dataset/' + 'CommitSummary' + '.csv',nrows = 3000)
+complexity = pd.read_csv('dataset/' + '__CommitSummaryByFile' + '.csv') #__CommitSummaryByFile.csv
 complexity.rename(columns = {'Unnamed: 10' : 'result'}, inplace = True)
 
 # complexity=complexity.iloc[:,[1,2,3,4,5]]
@@ -177,17 +175,18 @@ features =Embedding(output_dim=embeddings_matrix.shape[1],
                          input_dim=embeddings_matrix.shape[0],
                          weights=[embeddings_matrix],
                          input_length=1500)(bugreport_input)
-lstm_out = LSTM(128)(features)
-hidden_x = Dense(64, activation='tanh')(lstm_out)
+lstm_out = LSTM(128,dropout=0.3)(features)
+hidden_x = Dense(32, activation='tanh')(lstm_out)
 hidden_complexity=Dense(64,activation='tanh')(complexity_input)
+hidden_complexity=Dense(32,activation='tanh')(complexity_input)
 concatenate_layer=tf.keras.layers.concatenate([hidden_x,hidden_complexity], axis=1)
-hidden_x = Dense(32, activation='tanh')(concatenate_layer)
+hidden_x = Dense(16, activation='tanh',)(concatenate_layer)
 output = Dense(7, activation='softmax')(hidden_x)
 
 model = keras.Model(inputs=[bugreport_input,complexity_input],outputs=output)
 #________________________________________________________________
 
-model.compile(loss = 'categorical_crossentropy', optimizer = keras.optimizers.RMSprop(1e-3), metrics = ['accuracy'],)
+model.compile(loss = 'categorical_crossentropy', optimizer =  keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0), metrics = ['accuracy'],)
 
 model.summary()
 
@@ -197,25 +196,27 @@ y_final=np.array(Y_labels)
 
 # X_final.shape,y_final.shape
 
-mix_max_scaler=sklearn.preprocessing.MinMaxScaler()
-X_final=mix_max_scaler.fit_transform(X_final)
-
+# mix_max_scaler=sklearn.preprocessing.MinMaxScaler()
+X_final=pd.DataFrame(mix_max_scaler.fit_transform(X_final))
+complexity_scaler=pd.DataFrame(complexity_scaler)
 # X_final = sklearn.preprocessing.scale(X_final)
 
-
+test=pd.concat([complexity_scaler,X_final],axis=1)
+# comple=test.iloc[:,0:5]
+# bg=test.iloc[:,5:]
 from sklearn.model_selection import train_test_split
 
-X_train, X_test, y_train, y_test = train_test_split(X_final, y_final, test_size=0.30, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(test, y_final, test_size=0.20, random_state=20)
 
-length=len(X_train)
-
-
-complexity_train=complexity_scaler[:length,:]
-complexity_test=complexity_scaler[length:,:]
+# length=len(X_train)
+#
+#
+# complexity_train=complexity_scaler[:length,:]
+# complexity_test=complexity_scaler[length:,:]
 ### Finally Training
 # model.fit(X_train,y_train,validation_data=(X_test,y_test),epochs=20,batch_size=100)
 
-model.fit([X_train,complexity_train],y_train,validation_data=([X_test,complexity_test],y_test),epochs=20,batch_size=300)
+model.fit([X_train.iloc[:,5:],X_train.iloc[:,0:5]],y_train,validation_data=([X_test.iloc[:,5:],X_test.iloc[:,0:5]],y_test),epochs=20,batch_size=20)
 
 
 # results = model.evaluate(X_test, y_test)
@@ -223,7 +224,7 @@ model.fit([X_train,complexity_train],y_train,validation_data=([X_test,complexity
 # predictions = model.predict(X_test)
 # print(predictions)
 
-results = model.evaluate([X_test,complexity_test],y_test)
+results = model.evaluate([X_test.iloc[:,5:],X_test.iloc[:,0:5]],y_test)
 print('evaluate test data:')
 print(results)
 
