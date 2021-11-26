@@ -157,7 +157,7 @@ mix_max_scaler=sklearn.preprocessing.MinMaxScaler()
 complexity_scaler=mix_max_scaler.fit_transform(complexity)
 #________________________________________________________________
 bugreport_input = keras.Input(shape=(X.shape[1],),name="bugreport")
-complexity_input = keras.Input(shape=(complexity_scaler.shape[1],),name="complexity")
+complexity_input = keras.Input(shape=(complexity_scaler.shape[1],),name="code metrics")
 features =Embedding(output_dim=embeddings_matrix.shape[1],
                          input_dim=embeddings_matrix.shape[0],
                          weights=[embeddings_matrix],
@@ -193,7 +193,7 @@ test=pd.concat([complexity_scaler,X_final],axis=1)
 # bg=test.iloc[:,5:]
 from sklearn.model_selection import train_test_split
 
-X_train, X_test, y_train, y_test = train_test_split(test, y_final, test_size=0.30, random_state=36)
+X_train, X_test, y_train, y_test = train_test_split(test, y_final, test_size=0.30, random_state=42)
 
 # length=len(X_train)
 #
@@ -203,7 +203,7 @@ X_train, X_test, y_train, y_test = train_test_split(test, y_final, test_size=0.3
 ### Finally Training
 # model.fit(X_train,y_train,validation_data=(X_test,y_test),epochs=20,batch_size=100)
 
-model.fit([X_train.iloc[:,5:],X_train.iloc[:,0:5]],y_train,validation_data=([X_test.iloc[:,5:],X_test.iloc[:,0:5]],y_test),epochs=20,batch_size=100)
+model.fit([X_train.iloc[:,5:],X_train.iloc[:,0:5]],y_train,validation_data=([X_test.iloc[:,5:],X_test.iloc[:,0:5]],y_test),epochs=10,batch_size=100)
 
 
 # results = model.evaluate(X_test, y_test)

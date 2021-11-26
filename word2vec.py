@@ -189,7 +189,7 @@ output = Dense(7, activation='softmax')(hidden_x)
 model = keras.Model(inputs=input, outputs=output)
 #________________________________________________________________
 
-model.compile(loss = 'categorical_crossentropy', optimizer = 'rmsprop', metrics = ['accuracy'])
+model.compile(loss = 'categorical_crossentropy', optimizer =  keras.optimizers.Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0), metrics = ['accuracy'])
 
 model.summary()
 
