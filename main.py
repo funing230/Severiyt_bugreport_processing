@@ -21,7 +21,7 @@ from sklearn.preprocessing import LabelEncoder
 
 #read bugreport for XLSX
 projectname = 'Eclipse_Platform_UI_bugreport'
-Eclipse_Platform_UI = pd.read_excel('dataset/' + projectname + '.xlsx', engine='openpyxl')#, nrows = 500
+Eclipse_Platform_UI = pd.read_excel('dataset/' + projectname + '.xlsx', engine='openpyxl')#,nrows = 500
 Eclipse_Platform_UI.rename(columns = {'Unnamed: 10' : 'result'}, inplace = True)
 #_________________________________________________________________________________________________________
 #read Serverity for XLSX
@@ -31,13 +31,17 @@ serverity.rename(columns = {'Unnamed: 10' : 'result'}, inplace = True)
 #_________________________________________________________________________________________________________
 #read Serverity for XLSX    CommitSummary.csv
 
-complexity = pd.read_csv('dataset/' + '__CommitSummaryByFile' + '.csv') #__CommitSummaryByFile.csv
-complexity.rename(columns = {'Unnamed: 10' : 'result'}, inplace = True)
+# complexity = pd.read_csv('dataset/' + '__CommitSummaryByFile' + '.csv',nrows = 5) #__CommitSummaryByFile.csv
+# complexity.rename(columns = {'Unnamed: 10' : 'result'}, inplace = True)
+
+metrics = pd.read_csv('dataset/' + 'commit_metrics' + '.csv') #
+metrics_drop=metrics.drop(labels=['class','type', 'lcom*', 'tcc', 'lcc'],axis=1)
+metrics_drop.rename(columns = {'Unnamed: 10' : 'result'}, inplace = True)
 
 # complexity=complexity.iloc[:,[1,2,3,4,5]]
 #_________________________________________________________________________________________________________
 
-Eclipse_Platform_UI=pd.concat([Eclipse_Platform_UI, complexity],axis=1,ignore_index=True,keys='bug_id')
+Eclipse_Platform_UI=pd.concat([Eclipse_Platform_UI, metrics_drop],axis=1,ignore_index=True,keys='bug_id')
 #_________________________________________________________________________________________________________
 
 Eclipse_Platform_UI=pd.concat([Eclipse_Platform_UI, serverity],axis=1,ignore_index=True,keys='bug_id')
@@ -51,8 +55,11 @@ Eclipse_Platform_UI.dropna(inplace = True)
 Eclipse_Platform_UI.reset_index(inplace = True)
 
 df_id_br_s=Eclipse_Platform_UI.iloc[:,[2,3,4,-1]]
-complexity=Eclipse_Platform_UI.iloc[:,[12,13,14,15,16]]
+complexity=Eclipse_Platform_UI.iloc[:,13:-2]
 
+print("shape for metrics--------------------------")
+print(complexity.shape)
+print("shape for metrics--------------------------")
 def merge_text(a,b):
     return (a,b)
 
@@ -130,8 +137,6 @@ def get_word2vec_dictionaries(texts):
 
 word_index, word_vector, embeddings_matrix = get_word2vec_dictionaries(sentences)
 
-
-
 MAX_SEQUENCE_LENGTH = 1800
 # Serialize the text, tokenizer sentence, and return the word index corresponding to each sentence
 def tokenizer(sentences, word_index):
@@ -203,7 +208,7 @@ X_train, X_test, y_train, y_test = train_test_split(test, y_final, test_size=0.3
 ### Finally Training
 # model.fit(X_train,y_train,validation_data=(X_test,y_test),epochs=20,batch_size=100)
 
-model.fit([X_train.iloc[:,5:],X_train.iloc[:,0:5]],y_train,validation_data=([X_test.iloc[:,5:],X_test.iloc[:,0:5]],y_test),epochs=10,batch_size=100)
+model.fit([X_train.iloc[:,46:],X_train.iloc[:,0:46]],y_train,validation_data=([X_test.iloc[:,46:],X_test.iloc[:,0:46]],y_test),epochs=10,batch_size=100)
 
 
 # results = model.evaluate(X_test, y_test)
@@ -211,7 +216,7 @@ model.fit([X_train.iloc[:,5:],X_train.iloc[:,0:5]],y_train,validation_data=([X_t
 # predictions = model.predict(X_test)
 # print(predictions)
 
-results = model.evaluate([X_test.iloc[:,5:],X_test.iloc[:,0:5]],y_test)
+results = model.evaluate([X_test.iloc[:,46:],X_test.iloc[:,0:46]],y_test)
 print('evaluate test data:')
 print(results)
 
