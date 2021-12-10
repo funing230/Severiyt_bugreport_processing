@@ -35,7 +35,9 @@ serverity.rename(columns = {'Unnamed: 10' : 'result'}, inplace = True)
 # complexity.rename(columns = {'Unnamed: 10' : 'result'}, inplace = True)
 
 metrics = pd.read_csv('dataset/' + 'commit_metrics' + '.csv') #
-metrics_drop=metrics.drop(labels=['class','type', 'lcom*', 'tcc', 'lcc'],axis=1)
+metrics=metrics.fillna(0)
+metrics_drop=metrics.drop(labels=['class','type'],axis=1)   #, 'lcom*', 'tcc', 'lcc'
+
 metrics_drop.rename(columns = {'Unnamed: 10' : 'result'}, inplace = True)
 
 # complexity=complexity.iloc[:,[1,2,3,4,5]]
@@ -208,7 +210,8 @@ X_train, X_test, y_train, y_test = train_test_split(test, y_final, test_size=0.3
 ### Finally Training
 # model.fit(X_train,y_train,validation_data=(X_test,y_test),epochs=20,batch_size=100)
 
-model.fit([X_train.iloc[:,46:],X_train.iloc[:,0:46]],y_train,validation_data=([X_test.iloc[:,46:],X_test.iloc[:,0:46]],y_test),epochs=10,batch_size=100)
+# model.fit([X_train.iloc[:,46:],X_train.iloc[:,0:46]],y_train,validation_data=([X_test.iloc[:,46:],X_test.iloc[:,0:46]],y_test),epochs=10,batch_size=100)
+model.fit([X_train.iloc[:,49:],X_train.iloc[:,0:49]],y_train,validation_data=([X_test.iloc[:,49:],X_test.iloc[:,0:49]],y_test),epochs=10,batch_size=100)
 
 
 # results = model.evaluate(X_test, y_test)
@@ -216,7 +219,7 @@ model.fit([X_train.iloc[:,46:],X_train.iloc[:,0:46]],y_train,validation_data=([X
 # predictions = model.predict(X_test)
 # print(predictions)
 
-results = model.evaluate([X_test.iloc[:,46:],X_test.iloc[:,0:46]],y_test)
+results = model.evaluate([X_test.iloc[:,49:],X_test.iloc[:,0:49]],y_test)
 print('evaluate test data:')
 print(results)
 

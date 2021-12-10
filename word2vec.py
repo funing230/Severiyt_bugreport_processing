@@ -142,7 +142,7 @@ word_index, word_vector, embeddings_matrix = get_word2vec_dictionaries(sentences
 
 
 
-MAX_SEQUENCE_LENGTH = 1500
+MAX_SEQUENCE_LENGTH = 1800
 # Serialize the text, tokenizer sentence, and return the word index corresponding to each sentence
 def tokenizer(sentences, word_index):
     index_data = []
